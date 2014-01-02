@@ -2,7 +2,7 @@ var csp = require('csp'),
     sprintf = require('sprintf');
 
 function *main() {
-  var c = new csp.Chan(1);
+  var c = new csp.Chan();
   yield csp.spawn(boring, 'boring!', c);
   for (var i = 0; i < 5; i++) {
     console.log('You say: %s', yield c.take());
