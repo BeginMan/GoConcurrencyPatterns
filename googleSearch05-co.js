@@ -30,20 +30,21 @@ function *Google(query) {
     c(yield First(query, [Video1, Video2]));
   });
 
-  var completed = false;
-  spawn(function *() {
-    yield sleep(80);
-    if (!completed) {
-      console.log("timed out");
-      process.exit();
-    }
-  });
+  var timeout = sleep(80);
 
   var results = [];
   for (var i = 0; i < 3; i++) {
-    results.push(yield c);
+    var val = yield select([c, timeout]);
+    switch (val.caller) {
+      case c:
+        results.push(val.value);
+        break;
+
+      case timeout:
+        console.log('timed out');
+        return;
+    }
   }
-  completed = true;
   return results;
 }
 
@@ -67,3 +68,29 @@ function *main() {
 }
 
 co(main)();
+
+function select(asyncs, valuesOnly) {
+  var ctx = this;
+  return function (cb) {
+    var called = false;
+    function first(async, err, result) {
+      if (called) return;
+      called = true;
+      if (valuesOnly) {
+        cb.apply(ctx, Array.prototype.slice.call(arguments, 1));
+      } else {
+        var results = result;
+        if (arguments.length > 3) {
+          results = Array.prototype.slice.call(arguments, 2);
+        }
+        cb.call(ctx, err, {
+          caller: async,
+          value: results
+        });
+      }
+    }
+    asyncs.forEach(function (async) {
+      async.call(ctx, first.bind(null, async));
+    });
+  };
+}
