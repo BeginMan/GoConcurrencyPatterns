@@ -1,6 +1,7 @@
 var co = require('co'),
     sleep = require('co-sleep'),
     spawn = require('co-spawn'),
+    select = require('co-select'),
     chan = require('chan'),
     sprintf = require('sprintf');
 
@@ -34,10 +35,10 @@ function *Google(query) {
 
   var results = [];
   for (var i = 0; i < 3; i++) {
-    var val = yield select([c, timeout]);
-    switch (val.caller) {
+    var first = yield select([c, timeout]);
+    switch (first.caller) {
       case c:
-        results.push(val.value);
+        results.push(first.value);
         break;
 
       case timeout:
@@ -68,29 +69,3 @@ function *main() {
 }
 
 co(main)();
-
-function select(asyncs, valuesOnly) {
-  var ctx = this;
-  return function (cb) {
-    var called = false;
-    function first(async, err, result) {
-      if (called) return;
-      called = true;
-      if (valuesOnly) {
-        cb.apply(ctx, Array.prototype.slice.call(arguments, 1));
-      } else {
-        var results = result;
-        if (arguments.length > 3) {
-          results = Array.prototype.slice.call(arguments, 2);
-        }
-        cb.call(ctx, err, {
-          caller: async,
-          value: results
-        });
-      }
-    }
-    asyncs.forEach(function (async) {
-      async.call(ctx, first.bind(null, async));
-    });
-  };
-}
